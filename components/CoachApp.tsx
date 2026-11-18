@@ -94,6 +94,7 @@ export default function CoachApp() {
   const objectUrlsRef = useRef<string[]>([]);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const wavByTurnRef = useRef<Map<string, Blob>>(new Map());
+  const discardCaptureRef = useRef(false);
 
   const setStatusSafe = useCallback((next: CallStatus) => {
     statusRef.current = next;
@@ -483,10 +484,17 @@ export default function CoachApp() {
         const type = recorder.mimeType || mime || "audio/webm";
         const blob = new Blob(chunks, { type });
         const duration = recSecondsRef.current;
+        const discard = discardCaptureRef.current;
+        discardCaptureRef.current = false;
         cleanupCapture();
+        if (discard) {
+          setStatusSafe("idle");
+          return;
+        }
         void handleClip(blob, duration);
       };
 
+      discardCaptureRef.current = false;
       recorderRef.current = recorder;
       recorder.start(200);
 
@@ -550,11 +558,13 @@ export default function CoachApp() {
 
   const endCall = useCallback(() => {
     stopPlayback();
+    // Ending the call discards whatever was mid-recording instead of sending it.
+    discardCaptureRef.current = true;
     if (recorderRef.current && recorderRef.current.state !== "inactive") {
       try {
         recorderRef.current.stop();
       } catch {
-        /* ignore */
+        discardCaptureRef.current = false;
       }
     }
     cleanupCapture();
@@ -631,6 +641,7 @@ export default function CoachApp() {
 
   const clearSession = useCallback(() => {
     stopPlayback();
+    discardCaptureRef.current = true;
     cleanupCapture();
     objectUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
     objectUrlsRef.current = [];
