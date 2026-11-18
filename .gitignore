@@ -39,3 +39,6 @@ yarn-error.log*
 
 # typescript
 *.tsbuildinfo
+
+# transient build dirs (e.g. after moving a locked .next)
+/.next-*/
